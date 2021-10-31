@@ -5,8 +5,6 @@ import seaborn as sns
 from dataproc import read_csv
 import dataproc.untargeted_ms as ms
 
-# TODO: KEEP METABOLITES WHOSE CONTROL CV < 15%
-
 BASE_PATH = os.path.abspath(os.path.dirname(__file__))
 DATA_PATH = os.path.join(BASE_PATH, "data")
 sns.set_theme()
