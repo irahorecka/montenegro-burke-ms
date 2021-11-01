@@ -7,6 +7,7 @@ import dataproc.untargeted_ms as ms
 
 BASE_PATH = os.path.abspath(os.path.dirname(__file__))
 DATA_PATH = os.path.join(BASE_PATH, "data")
+FIGURES_PATH = os.path.join(BASE_PATH, "figures")
 sns.set_theme()
 
 
@@ -76,6 +77,7 @@ if __name__ == "__main__":
         DATA_PATH, "exportFile_irahorecka_yeast_nutrient_array_150milliminute_retention_time.csv"
     )
     untargeted_yeast_ms_df = read_csv(untargeted_yeast_ms_path)
+
     # Manipulate df for aggregation
     untargeted_yeast_ms_df = isolate_cols_and_transpose_df(untargeted_yeast_ms_df)
     untargeted_yeast_ms_df = mutate_and_relabel_nutrient_data(untargeted_yeast_ms_df)
@@ -84,16 +86,22 @@ if __name__ == "__main__":
     agg_nutrient_mean, agg_nutrient_std, agg_nutrient_cv = aggregate_mean_std_cv_from_nutrient_data(
         untargeted_yeast_ms_df
     )
+    # Only look at metabolites where the CV % for the control is < 15%
     # agg_nutrient_mean = filter_mean_data_from_control_cv_threshold(
     #     agg_nutrient_mean, agg_nutrient_cv, cv_threshold=0.25
     # )
+
+    # Normalize aggregated mean data to mean of control - perform log2 scaling of results
     norm_agg_nutrient_mean = normalize_nutrient_data_to_control(agg_nutrient_mean)
-    norm_agg_nuttient_mean_log2 = ms.get_log2_df(
+    norm_agg_nutrient_mean_log2 = ms.get_log2_df(
         norm_agg_nutrient_mean, downregulated=False, log2_weight=1
     )
 
+    # Export data as CSV for further analysis
+    norm_agg_nutrient_mean_log2.to_csv(os.path.join(DATA_PATH, "log2_nutrient_mean.csv"))
+
     # Plot results as a hierarchical dendrogram
-    down_regulated = sns.clustermap(
-        norm_agg_nuttient_mean_log2.fillna(0).T, cmap="rocket_r", z_score=0
-    )
-    down_regulated.savefig("test_zscore.eps", format="eps")
+    # down_regulated = sns.clustermap(
+    #     norm_agg_nutrient_mean_log2.fillna(0).T, cmap="rocket_r", z_score=0
+    # )
+    # down_regulated.savefig(os.path.join(FIGURES_PATH, "test_zscore.eps"), format="eps")
