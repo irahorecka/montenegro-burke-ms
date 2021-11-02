@@ -1,5 +1,4 @@
 library('dplyr')
-library('janitor')
 library('pheatmap')
 
 
@@ -16,4 +15,5 @@ pheatmap(as.matrix(t(data)),
     cluster_rows=T,
     cluster_cols=F,
     clustering_method="ward.D2",
-    clustering_distance_rows="manhattan")
+    clustering_distance_rows="manhattan",
+    main="Pertubations in the yeast metabolic profile\nas a result of different nutrient compositions")

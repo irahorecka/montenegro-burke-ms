@@ -78,6 +78,14 @@ if __name__ == "__main__":
     )
     untargeted_yeast_ms_df = read_csv(untargeted_yeast_ms_path)
 
+    # Try below two expressions to read 350milliminute retention time file.
+    # These samples contain _REF or _MET suffix for values in column "Compound Name".
+    if untargeted_yeast_ms_df["Compound Name"].str[-3:].str.contains("MET").any():
+        untargeted_yeast_ms_df = ms.drop_rows_with_substring_in_col_value(
+            untargeted_yeast_ms_df, "Compound Name", "REF"
+        )
+        untargeted_yeast_ms_df["Compound Name"] = untargeted_yeast_ms_df["Compound Name"].str[:-4]
+
     # Manipulate df for aggregation
     untargeted_yeast_ms_df = isolate_cols_and_transpose_df(untargeted_yeast_ms_df)
     untargeted_yeast_ms_df = mutate_and_relabel_nutrient_data(untargeted_yeast_ms_df)
