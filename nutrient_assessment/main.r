@@ -4,7 +4,7 @@ library('pheatmap')
 
 # Read and process CSV for plotting on cluster map
 data <- read.csv('data/log2_nutrient_mean.csv')
-# Ward Hierarchical Clustering
+# Index Sample.Group as row names and drop Sample.Group column.
 rownames(data) <- data$Sample.Group
 data$Sample.Group <- NULL
 data <- mutate_all(data, function(x) as.numeric(as.character(x)))
@@ -16,4 +16,5 @@ pheatmap(as.matrix(t(data)),
     cluster_cols=F,
     clustering_method="ward.D2",
     clustering_distance_rows="manhattan",
-    main="Pertubations in the yeast metabolic profile\nas a result of different nutrient compositions")
+    main="Pertubations in the yeast metabolic profile\nas a result of different nutrient compositions"
+    )

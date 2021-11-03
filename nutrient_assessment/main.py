@@ -74,7 +74,7 @@ def normalize_nutrient_data_to_control(df):
 if __name__ == "__main__":
     # Get pandas df from CSV path
     untargeted_yeast_ms_path = os.path.join(
-        DATA_PATH, "exportFile_irahorecka_yeast_nutrient_array_150milliminute_retention_time.csv"
+        DATA_PATH, "exportFile_irahorecka_yeast_nutrient_array_350milliminute_retention_time.csv"
     )
     untargeted_yeast_ms_df = read_csv(untargeted_yeast_ms_path)
 
