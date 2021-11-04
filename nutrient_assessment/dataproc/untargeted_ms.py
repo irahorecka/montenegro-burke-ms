@@ -45,7 +45,9 @@ def group_and_agg(df, colname, agg_type):
     return df.groupby([colname]).agg(agg_type)
 
 
-def get_log2_df(df, downregulated=False, log2_weight=1):
+def get_log2_df_directional(df, downregulated=False, log2_weight=1):
+    """Get df where any column values greater than log2_weight will be kept
+    if downregulated=False. Less than log2_weight will be kept if downregulated=True."""
     # Convert values to log2 - get a sense of upregulation and downregulation
     df_log = np.log2(df)
     # Remove inf / -inf and replace NaN with 0
@@ -56,6 +58,24 @@ def get_log2_df(df, downregulated=False, log2_weight=1):
         df_log = df_log[df_log.fillna(0) < -log2_weight]
     else:
         df_log = df_log[df_log.fillna(0) > log2_weight]
+
+    df_log = df_log.dropna(axis=1, how="all")
+    header_colnames_to_keep = list(df_log)
+    return np.log2(df[header_colnames_to_keep])
+
+def get_log2_df(df, log2_weight=1):
+    """Get df where any column values greater than log2_weight or less than
+    log2_weight will be kept."""
+    # Convert values to log2 - get a sense of upregulation and downregulation
+    df_log = np.log2(df)
+    # Remove inf / -inf and replace NaN with 0
+    df_log.replace([np.inf, -np.inf], np.nan, inplace=True)
+
+    # Refine values to query - improves resolution of large differences
+    df_log_downregulated = df_log[df_log.fillna(0) < -log2_weight]
+    df_log_upregulated = df_log[df_log.fillna(0) > log2_weight]
+    df_log_downregulated[df_log_downregulated.isnull()] = df_log_upregulated
+    df_log = df_log_downregulated
 
     df_log = df_log.dropna(axis=1, how="all")
     header_colnames_to_keep = list(df_log)

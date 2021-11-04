@@ -62,8 +62,8 @@ def normalize_nutrient_data_to_control(df):
     # Remove blank row and CTRL
     df = df.drop(index=["Blank", "CTRL"])
     # Divide groups 1-6 by group 3 (i.e., our control) to get relative expression diff
-    df.loc[:, "2_2_Dimethylsuccinic_acid":] = df.loc[:, "2_2_Dimethylsuccinic_acid":].div(
-        df.iloc[3]["2_2_Dimethylsuccinic_acid":]
+    df.loc[:, df.columns[0]:] = df.loc[:, df.columns[0]:].div(
+        df.iloc[3][df.columns[0]:]
     )
     # Drop control row (Glucose and ammonia)
     df = df.drop(index="GLC | AMN")
@@ -96,13 +96,13 @@ if __name__ == "__main__":
     )
     # Only look at metabolites where the CV % for the control is < 15%
     # agg_nutrient_mean = filter_mean_data_from_control_cv_threshold(
-    #     agg_nutrient_mean, agg_nutrient_cv, cv_threshold=0.25
+    #     agg_nutrient_mean, agg_nutrient_cv, cv_threshold=0.5
     # )
 
     # Normalize aggregated mean data to mean of control - perform log2 scaling of results
     norm_agg_nutrient_mean = normalize_nutrient_data_to_control(agg_nutrient_mean)
-    norm_agg_nutrient_mean_log2 = ms.get_log2_df(
-        norm_agg_nutrient_mean, downregulated=False, log2_weight=1
+    norm_agg_nutrient_mean_log2 = ms.get_log2_df_directional(
+        norm_agg_nutrient_mean, downregulated=True, log2_weight=1
     )
 
     # Export data as CSV for further analysis
