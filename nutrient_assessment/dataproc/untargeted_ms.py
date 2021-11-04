@@ -63,6 +63,7 @@ def get_log2_df_directional(df, downregulated=False, log2_weight=1):
     header_colnames_to_keep = list(df_log)
     return np.log2(df[header_colnames_to_keep])
 
+
 def get_log2_df(df, log2_weight=1):
     """Get df where any column values greater than log2_weight or less than
     log2_weight will be kept."""
