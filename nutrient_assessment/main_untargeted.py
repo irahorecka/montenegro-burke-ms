@@ -1,3 +1,28 @@
+"""
+montenegro-burke-ms/nutrient_assessment/main_untargeted.py
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A standalone script to generate a filtered and normalized
+CSV file showing log2 transformed expression differences among
+nutrient conditions to the control nutriend condition (GLC | AMN).
+
+The functions written here are hard-coded with values that are
+found in 'exportFile_irahorecka_yeast_nutrient_array_350milliminute_retention_time.csv'
+I know... not the best practice, but it'll do for now.
+
+The filtering conducted here are:
+    - Remove metabolite compounds with less than 3/4 reads in any
+    nutrient categories.
+    - [OPTIONAL] Don't add metabolite samples that showed less than
+    x% (e.g. 15%) CV in the control group (GLC | AMN)
+    - [VARYING] Keep only metabolite samples that showed at least
+    2-fold increase in expression in any nutrient condition in respect
+    to the control (GLC | AMN)
+
+Output data can be found here:
+montenegro-burke-ms/nutrient_assessment/data/log2_nutrient_mean.csv
+"""
+
 import os
 
 import seaborn as sns
@@ -12,12 +37,15 @@ sns.set_theme()
 
 
 def isolate_cols_and_transpose_df(df):
+    """Mutates data to keep colname substring and move the metabolite
+    compounds as column headers."""
     df = ms.get_df_with_cols_to_keep(df, col_substrings=["Compound Name", "Area"])
     df = ms.transpose_and_reset_idx(df)
     return ms.mv_row_as_header(df, row_idx=0)
 
 
 def mutate_and_relabel_nutrient_data(df):
+    """Renames plate well names to nutrient conditions."""
     ternary_exp = [
         df["Compound Name"].str.split("_").str[1].str[-1].str.isdigit(),
         df["Compound Name"].str.split("_").str[1].str[-1],
@@ -39,7 +67,10 @@ def mutate_and_relabel_nutrient_data(df):
 
 
 def aggregate_mean_std_cv_from_nutrient_data(df):
+    """Aggregates dataframe to find mean, std, and cv, grouping by column
+    'Sample Group'. Returns all three aggregated dataframes to caller."""
     df = ms.convert_to_numerics(df)
+    df = filter_data_with_more_than_3_reads_among_4_samples(df, "Sample Group")
     # Begin aggregation
     df_mean = ms.group_and_agg(df, colname="Sample Group", agg_type="mean")
     df_std = ms.group_and_agg(df, colname="Sample Group", agg_type="std")
@@ -47,7 +78,29 @@ def aggregate_mean_std_cv_from_nutrient_data(df):
     return df_mean, df_std, df_cv
 
 
+def filter_data_with_more_than_3_reads_among_4_samples(df, agg_colname):
+    """Filters and drops metabolite samples that have more than 1 NaN value in any
+    of the nutrient conditions. I.e., there must be greater than 3/4 valid samples in
+    all nutrient conditions when assessing a particular metabolite."""
+    # Generate aggregated data to count NaN
+    df_count_valid_data = ms.group_and_agg(
+        df, colname=agg_colname, agg_type=["count", "size"]
+    ).drop(index=["Blank", "CTRL"])
+
+    # Find columns to drop that have less than 3/4 reads (i.e., greater than 1 NA value in any nutrient category)
+    cols_to_drop = []
+    for colname in list(df_count_valid_data.T):
+        cols_to_drop.extend(
+            list(ms.get_cols_with_less_than_count_in_row(df_count_valid_data.T, colname, 3))
+        )
+    # Isolate only unique compounds found to have poor resolution
+    cols_to_drop_name = list({group[0] for group in cols_to_drop})
+    return df.drop(cols_to_drop_name, axis=1)
+
+
 def filter_mean_data_from_control_cv_threshold(df_mean, df_cv, cv_threshold=0.15):
+    """Returns metabolite samples that have a control CV value less than the cv_threshold.
+    I.e., 'GLC | AMN' must have a CV% less than cv_threshold (e.g. 15)."""
     # Non-numeric column - pop and reintroduce later
     sample_group = df_cv.pop("Sample Group")
     df_cv_adj = df_cv[df_cv < cv_threshold]
@@ -59,6 +112,8 @@ def filter_mean_data_from_control_cv_threshold(df_mean, df_cv, cv_threshold=0.15
 
 
 def normalize_nutrient_data_to_control(df):
+    """Normalizes nutrient data value to the control (GLC | AMN). Drops the control row
+    after normalization and returns dataframe to caller."""
     # Remove blank row and CTRL
     df = df.drop(index=["Blank", "CTRL"])
     # Divide groups 1-6 by group 3 (i.e., our control) to get relative expression diff
@@ -87,10 +142,14 @@ if __name__ == "__main__":
     # Manipulate df for aggregation
     untargeted_yeast_ms_df = isolate_cols_and_transpose_df(untargeted_yeast_ms_df)
     untargeted_yeast_ms_df = mutate_and_relabel_nutrient_data(untargeted_yeast_ms_df)
+
+    # Begin aggregation
+    df = ms.convert_to_numerics(untargeted_yeast_ms_df)
     # Aggregate df and find normalized values in respect to the control
     agg_nutrient_mean, agg_nutrient_std, agg_nutrient_cv = aggregate_mean_std_cv_from_nutrient_data(
         untargeted_yeast_ms_df
     )
+
     # Only look at metabolites where the CV % for the control is < 15%
     # agg_nutrient_mean = filter_mean_data_from_control_cv_threshold(
     #     agg_nutrient_mean, agg_nutrient_cv, cv_threshold=0.5
@@ -99,14 +158,8 @@ if __name__ == "__main__":
     # Normalize aggregated mean data to mean of control - perform log2 scaling of results
     norm_agg_nutrient_mean = normalize_nutrient_data_to_control(agg_nutrient_mean)
     norm_agg_nutrient_mean_log2 = ms.get_log2_df_directional(
-        norm_agg_nutrient_mean, downregulated=True, log2_weight=1
+        norm_agg_nutrient_mean, downregulated=False, log2_weight=1
     )
 
     # Export data as CSV for further analysis
     norm_agg_nutrient_mean_log2.to_csv(os.path.join(DATA_PATH, "log2_nutrient_mean.csv"))
-
-    # Plot results as a hierarchical dendrogram
-    # down_regulated = sns.clustermap(
-    #     norm_agg_nutrient_mean_log2.fillna(0).T, cmap="rocket_r", z_score=0
-    # )
-    # down_regulated.savefig(os.path.join(FIGURES_PATH, "test_zscore.eps"), format="eps")
