@@ -12,12 +12,15 @@ sns.set_theme()
 
 
 def isolate_cols_and_transpose_df(df):
+    """Mutates data to keep colname substring and move the metabolite
+    compounds as column headers."""
     df = ms.get_df_with_cols_to_keep(df, col_substrings=["DetectedMass", "Area"])
     df = ms.transpose_and_reset_idx(df)
     return ms.mv_row_as_header(df, row_idx=0)
 
 
 def mutate_and_relabel_nutrient_data(df):
+    """Renames plate well names to nutrient conditions."""
     ternary_exp = [
         df["DetectedMass"].str.split("_").str[1].str[-1].str.isdigit(),
         df["DetectedMass"].str.split("_").str[1].str[-1],
@@ -39,7 +42,10 @@ def mutate_and_relabel_nutrient_data(df):
 
 
 def aggregate_mean_std_cv_from_nutrient_data(df):
+    """Aggregates dataframe to find mean, std, and cv, grouping by column
+    'Sample Group'. Returns all three aggregated dataframes to caller."""
     df = ms.convert_to_numerics(df)
+    df = filter_data_with_more_than_3_reads_among_4_samples(df, "Sample Group")
     # Begin aggregation
     df_mean = ms.group_and_agg(df, colname="Sample Group", agg_type="mean")
     df_std = ms.group_and_agg(df, colname="Sample Group", agg_type="std")
@@ -47,7 +53,29 @@ def aggregate_mean_std_cv_from_nutrient_data(df):
     return df_mean, df_std, df_cv
 
 
+def filter_data_with_more_than_3_reads_among_4_samples(df, agg_colname):
+    """Filters and drops metabolite samples that have more than 1 NaN value in any
+    of the nutrient conditions. I.e., there must be greater than 3/4 valid samples in
+    all nutrient conditions when assessing a particular metabolite."""
+    # Generate aggregated data to count NaN
+    df_count_valid_data = ms.group_and_agg(
+        df, colname=agg_colname, agg_type=["count", "size"]
+    ).drop(index=["Blank", "CTRL"])
+
+    # Find columns to drop that have less than 3/4 reads (i.e., greater than 1 NA value in any nutrient category)
+    cols_to_drop = []
+    for colname in list(df_count_valid_data.T):
+        cols_to_drop.extend(
+            list(ms.get_cols_with_less_than_count_in_row(df_count_valid_data.T, colname, 3))
+        )
+    # Isolate only unique compounds found to have poor resolution
+    cols_to_drop_name = list({group[0] for group in cols_to_drop})
+    return df.drop(cols_to_drop_name, axis=1)
+
+
 def filter_mean_data_from_control_cv_threshold(df_mean, df_cv, cv_threshold=0.15):
+    """Returns metabolite samples that have a control CV value less than the cv_threshold.
+    I.e., 'GLC | AMN' must have a CV% less than cv_threshold (e.g. 15)."""
     # Non-numeric column - pop and reintroduce later
     sample_group = df_cv.pop("Sample Group")
     df_cv_adj = df_cv[df_cv < cv_threshold]
@@ -59,6 +87,8 @@ def filter_mean_data_from_control_cv_threshold(df_mean, df_cv, cv_threshold=0.15
 
 
 def normalize_nutrient_data_to_control(df):
+    """Normalizes nutrient data value to the control (GLC | AMN). Drops the control row
+    after normalization and returns dataframe to caller."""
     # Remove blank row and CTRL
     df = df.drop(index=["Blank", "CTRL"])
     # Divide groups 1-6 by group 3 (i.e., our control) to get relative expression diff
@@ -76,11 +106,14 @@ if __name__ == "__main__":
         "exportFile_irahorecka_yeast_nutrient_array_batch_recursive_small_molecule_350milliminute_retention_time.csv",
     )
     small_molecule_df = read_csv(small_molecule_path).rename(columns={"Mass": "DetectedMass"})
-    small_molecule_df["DetectedMass"] = small_molecule_df["DetectedMass"].map(str) + "_" + small_molecule_df["RT"].map(str)
+    small_molecule_df["DetectedMass"] = (
+        small_molecule_df["DetectedMass"].map(str) + "_" + small_molecule_df["RT"].map(str)
+    )
 
     small_molecule_df.drop_duplicates(subset="DetectedMass", keep="first", inplace=True)
     small_molecule_df.drop(columns=["Compound Name", "Formula", "CAS ID"], inplace=True)
     small_molecule_df.dropna(inplace=True)
+
     small_molecule_df = isolate_cols_and_transpose_df(small_molecule_df)
     small_molecule_df = mutate_and_relabel_nutrient_data(small_molecule_df)
     agg_nutrient_mean, agg_nutrient_std, agg_nutrient_cv = aggregate_mean_std_cv_from_nutrient_data(
@@ -89,7 +122,7 @@ if __name__ == "__main__":
 
     # Normalize aggregated mean data to mean of control - perform log2 scaling of results
     norm_agg_nutrient_mean = normalize_nutrient_data_to_control(agg_nutrient_mean)
-    norm_agg_nutrient_mean_log2 = ms.get_log2_df(norm_agg_nutrient_mean, log2_weight=0)
+    norm_agg_nutrient_mean_log2 = ms.get_log2_df(norm_agg_nutrient_mean, log2_weight=1)
 
     # Export data as CSV for further analysis
     norm_agg_nutrient_mean_log2.to_csv(

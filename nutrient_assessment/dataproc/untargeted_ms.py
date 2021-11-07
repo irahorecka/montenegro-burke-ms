@@ -11,8 +11,13 @@ def get_df_with_cols_to_keep(df, col_substrings=None):
     return df[cols_to_keep]
 
 
-def drop_rows_with_substring_in_col_value(df, col, substring):
-    return df[~df[col].str.contains(substring)]
+def drop_rows_with_substring_in_col_value(df, colname, substring):
+    return df[~df[colname].str.contains(substring)]
+
+
+def get_cols_with_less_than_count_in_row(df, colname, count):
+    # Drop rows containing values less than count.
+    return df[(df[colname] < count)].T
 
 
 def transpose_and_reset_idx(df):
