@@ -1,9 +1,25 @@
+library('optparse')
 library('dplyr')
 library('pheatmap')
 
 
+# Get external arguments passed by the command line
+option_list = list(
+    make_option(c("-f", "--file"), type="character", default=NULL, 
+                help="dataset file name", metavar="character")); 
+
+opt_parser = OptionParser(option_list=option_list)
+opt = parse_args(opt_parser)
+
+# Check valid file path is provided
+if (is.null(opt$file)){
+  print_help(opt_parser)
+  stop("At least one argument must be supplied (input file).", call.=FALSE)
+}
+
+
 # Read and process CSV for plotting on cluster map
-data <- read.csv('data/log2_nutrient_mean_small_molecule.csv')
+data <- read.csv(opt$file)
 # Index Sample.Group as row names and drop Sample.Group column.
 rownames(data) <- data$Sample.Group
 data$Sample.Group <- NULL
@@ -17,5 +33,5 @@ pheatmap(as.matrix(t(data)),
     clustering_method="ward.D2",
     clustering_distance_rows="manhattan",
     display_numbers=T,
-    main="Pertubations in the yeast metabolic profile\nas a result of different nutrient compositions"
+    main="Upregulated metabolites in yeast\nas a result of varying nutrient conditions"
     )

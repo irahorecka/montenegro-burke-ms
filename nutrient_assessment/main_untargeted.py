@@ -36,24 +36,24 @@ FIGURES_PATH = os.path.join(BASE_PATH, "figures")
 sns.set_theme()
 
 
-def isolate_cols_and_transpose_df(df):
+def isolate_cols_and_transpose_df(df, col_substrings):
     """Mutates data to keep colname substring and move the metabolite
     compounds as column headers."""
-    df = ms.get_df_with_cols_to_keep(df, col_substrings=["Compound Name", "Area"])
+    df = ms.get_df_with_cols_to_keep(df, col_substrings)
     df = ms.transpose_and_reset_idx(df)
     return ms.mv_row_as_header(df, row_idx=0)
 
 
-def mutate_and_relabel_nutrient_data(df):
+def mutate_and_relabel_nutrient_data(df, src_colname, dest_colname="Sample Group"):
     """Renames plate well names to nutrient conditions."""
     ternary_exp = [
-        df["Compound Name"].str.split("_").str[1].str[-1].str.isdigit(),
-        df["Compound Name"].str.split("_").str[1].str[-1],
-        df["Compound Name"].str.split("_").str[1],
+        df[src_colname].str.split("_").str[1].str[-1].str.isdigit(),
+        df[src_colname].str.split("_").str[1].str[-1],
+        df[src_colname].str.split("_").str[1],
     ]
-    df = ms.map_ternary_exp_and_replace_values(df, ternary_exp, new_colname="Sample Group")
-    # Drop useless Compound Name column, as we have our Sample Group column
-    df = df.drop(columns="Compound Name")
+    df = ms.map_ternary_exp_and_replace_values(df, ternary_exp, new_colname=dest_colname)
+    # Drop useless source column column, as we have our Sample Group column
+    df = df.drop(columns=src_colname)
 
     group_id_to_nutrient = {
         "1": "GLC | ASP",
@@ -63,17 +63,17 @@ def mutate_and_relabel_nutrient_data(df):
         "5": "GAL | GLN",
         "6": "GAL | AMN",
     }
-    return ms.map_dict_and_replace_values(df, colname="Sample Group", dict_map=group_id_to_nutrient)
+    return ms.map_dict_and_replace_values(df, colname=dest_colname, dict_map=group_id_to_nutrient)
 
 
-def aggregate_mean_std_cv_from_nutrient_data(df):
+def aggregate_mean_std_cv_from_nutrient_data(df, agg_colname="Sample Group"):
     """Aggregates dataframe to find mean, std, and cv, grouping by column
-    'Sample Group'. Returns all three aggregated dataframes to caller."""
+    bound to `agg_colname`. Returns all three aggregated dataframes to caller."""
     df = ms.convert_to_numerics(df)
-    df = filter_data_with_more_than_3_reads_among_4_samples(df, "Sample Group")
+    df = filter_data_with_more_than_3_reads_among_4_samples(df, agg_colname)
     # Begin aggregation
-    df_mean = ms.group_and_agg(df, colname="Sample Group", agg_type="mean")
-    df_std = ms.group_and_agg(df, colname="Sample Group", agg_type="std")
+    df_mean = ms.group_and_agg(df, colname=agg_colname, agg_type="mean")
+    df_std = ms.group_and_agg(df, colname=agg_colname, agg_type="std")
     df_cv = ms.convert_to_numerics(df_std.div(df_mean).reset_index())
     return df_mean, df_std, df_cv
 
@@ -140,8 +140,12 @@ if __name__ == "__main__":
         untargeted_yeast_ms_df["Compound Name"] = untargeted_yeast_ms_df["Compound Name"].str[:-4]
 
     # Manipulate df for aggregation
-    untargeted_yeast_ms_df = isolate_cols_and_transpose_df(untargeted_yeast_ms_df)
-    untargeted_yeast_ms_df = mutate_and_relabel_nutrient_data(untargeted_yeast_ms_df)
+    untargeted_yeast_ms_df = isolate_cols_and_transpose_df(
+        untargeted_yeast_ms_df, ["Compound Name", "Area"]
+    )
+    untargeted_yeast_ms_df = mutate_and_relabel_nutrient_data(
+        untargeted_yeast_ms_df, src_colname="Compound Name"
+    )
 
     # Begin aggregation
     df = ms.convert_to_numerics(untargeted_yeast_ms_df)
