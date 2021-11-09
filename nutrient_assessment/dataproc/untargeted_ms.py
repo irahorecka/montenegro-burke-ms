@@ -11,6 +11,10 @@ def get_df_with_cols_to_keep(df, col_substrings=None):
     return df[cols_to_keep]
 
 
+def convert_value_to_nan(df, value):
+    return df.replace(value, np.nan, inplace=False)
+
+
 def drop_rows_with_substring_in_col_value(df, colname, substring):
     return df[~df[colname].str.contains(substring)]
 
@@ -56,7 +60,7 @@ def get_log2_df_directional(df, downregulated=False, log2_weight=1):
     # Convert values to log2 - get a sense of upregulation and downregulation
     df_log = np.log2(df)
     # Remove inf / -inf and replace NaN with 0
-    df_log.replace([np.inf, -np.inf], np.nan, inplace=True)
+    df_log = convert_value_to_nan(df_log, [np.inf, -np.inf])
 
     # Refine values to query - improves resolution of large differences
     if downregulated:
@@ -75,7 +79,7 @@ def get_log2_df(df, log2_weight=1):
     # Convert values to log2 - get a sense of upregulation and downregulation
     df_log = np.log2(df)
     # Remove inf / -inf and replace NaN with 0
-    df_log.replace([np.inf, -np.inf], np.nan, inplace=True)
+    df_log = convert_value_to_nan(df_log, [np.inf, -np.inf])
 
     # Refine values to query - improves resolution of large differences
     df_log_downregulated = df_log[df_log.fillna(0) < -log2_weight]

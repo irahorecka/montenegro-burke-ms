@@ -1,3 +1,5 @@
+library('RColorBrewer')
+library('viridis')
 library('optparse')
 library('dplyr')
 library('pheatmap')
@@ -27,11 +29,11 @@ data <- mutate_all(data, function(x) as.numeric(as.character(x)))
 
 # Plot heatmap using ward.D2 clustering method employing Manhattan clustering by row
 pheatmap(as.matrix(t(data)),
-    cutree_rows=5,
+    cutree_rows=7,
     cluster_rows=T,
     cluster_cols=F,
     clustering_method="ward.D2",
     clustering_distance_rows="manhattan",
     display_numbers=T,
-    main="Upregulated metabolites in yeast\nas a result of varying nutrient conditions"
+    main="Upregulated metabolites in yeast\nas a result of varying nutrient conditions",
     )
