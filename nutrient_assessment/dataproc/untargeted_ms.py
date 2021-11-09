@@ -51,7 +51,13 @@ def map_ternary_exp_and_replace_values(df, ternary_cond, new_colname):
 
 
 def group_and_agg(df, colname, agg_type):
-    return df.groupby([colname]).agg(agg_type)
+    agg_type_map = {
+        "mean": np.nanmean,
+        "std": np.nanstd,
+    }
+    if isinstance(agg_type, list):
+        return df.groupby([colname]).agg(agg_type, agg_type)
+    return df.groupby([colname]).agg(agg_type_map.get(agg_type, agg_type))
 
 
 def get_log2_df_directional(df, downregulated=False, log2_weight=1):
