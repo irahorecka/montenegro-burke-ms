@@ -2,6 +2,19 @@ import numpy as np
 import pandas as pd
 
 
+def get_df_values_within_range(df, min, max):
+    df = df[df.fillna(0) < max]
+    return df[df.fillna(0) > min].dropna(axis=1)
+
+
+def get_empty_df_from_df(df):
+    return pd.DataFrame(columns=list(df))
+
+
+def concat_df(*args, axis=0):
+    return pd.concat(list(args), axis=axis)
+
+
 def get_df_with_cols_to_keep(df, col_substrings=None):
     if not col_substrings:
         return df
@@ -56,7 +69,7 @@ def group_and_agg(df, colname, agg_type):
         "std": np.nanstd,
     }
     if isinstance(agg_type, list):
-        return df.groupby([colname]).agg(agg_type, agg_type)
+        return df.groupby([colname]).agg(agg_type)
     return df.groupby([colname]).agg(agg_type_map.get(agg_type, agg_type))
 
 
