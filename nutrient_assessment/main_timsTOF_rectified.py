@@ -8,15 +8,17 @@ DATA_PATH = os.path.join(BASE_PATH, "data")
 FIGURES_PATH = os.path.join(BASE_PATH, "figures")
 
 
-def test(df, chunk_size):
+def normalize_metabolite_levels_within_biological_replicate(df, chunk_size):
+    """Normalizes metabolite levels to the control (GLC | AMN) within each biological replicate."""
     df = ms.convert_to_numerics(df)
-    # df = filter_data_with_more_than_n_reads_among_4_samples(df, "Sample Group", 2).drop(index=["BLANK", "CTRL"])
-    # print(df)
+    df = filter_data_with_more_than_n_reads_among_4_samples(df, "Sample Group", 2).drop(
+        index=["BLANK", "CTRL"]
+    )
     df_concat = ms.get_empty_df_from_df(df)
     list_df = [df[i : i + chunk_size] for i in range(0, df.shape[0], chunk_size)]
     for df_ in list_df:
         df_.loc[:, df_.columns[0] :] = df_.loc[:, df_.columns[0] :].div(
-            df_.iloc[3][df_.columns[0] :]
+            df_.iloc[2][df_.columns[0] :]
         )
         df_concat = ms.concat_df(df_concat, df_, axis=0)
     return df_concat.reset_index().rename(columns={"index": "Sample Group"})
@@ -25,7 +27,7 @@ def test(df, chunk_size):
 def aggregate_mean_std_cv_from_nutrient_data(df, agg_colname="Sample Group"):
     """Aggregates dataframe to find mean, std, and cv, grouping by column
     bound to `agg_colname`. Returns all three aggregated dataframes to caller."""
-    # df = filter_data_with_more_than_n_reads_among_4_samples(df, agg_colname, n=2)
+    df = filter_data_with_more_than_n_reads_among_4_samples(df, agg_colname, n=2)
     # Begin aggregation
     df_mean = ms.group_and_agg(df, colname=agg_colname, agg_type="mean")
     df_std = ms.group_and_agg(df, colname=agg_colname, agg_type="std")
@@ -38,7 +40,7 @@ def filter_data_with_more_than_n_reads_among_4_samples(df, agg_colname, n=0):
     of the nutrient conditions. I.e., there must be greater than or equal to n/4 valid samples in
     all nutrient conditions when assessing a particular metabolite."""
     # Generate aggregated data to count NaN
-    df_count_valid_data = ms.group_and_agg(df, colname=agg_colname, agg_type=["count", "size"])
+    df_count_valid_data = ms.group_and_agg(df, colname=agg_colname, agg_type="count")
     try:
         df_count_valid_data = df_count_valid_data.drop(index=["BLANK", "CTRL"])
     except:
@@ -97,7 +99,7 @@ if __name__ == "__main__":
 
     # Convert "0.0" readings to NaN
     tims_df_trunc = ms.convert_value_to_nan(tims_df_trunc, "0.0")
-    tims_df_trunc = test(tims_df_trunc, 6)
+    tims_df_trunc = normalize_metabolite_levels_within_biological_replicate(tims_df_trunc, 6)
 
     # Begin aggregating and normalizing aggregated results to control value (GLC | AMN)
     agg_nutrient_mean, _, _ = aggregate_mean_std_cv_from_nutrient_data(tims_df_trunc)
@@ -105,7 +107,7 @@ if __name__ == "__main__":
     norm_agg_nutrient_mean_log2 = ms.get_log2_df_directional(
         norm_agg_nutrient_mean, downregulated=False, log2_weight=4
     )
-    norm_agg_nutrient_mean_log2 = ms.get_df_values_within_range(norm_agg_nutrient_mean_log2, -5, 5)
+    norm_agg_nutrient_mean_log2 = ms.get_df_values_within_range(norm_agg_nutrient_mean_log2, -5, 10)
 
     # Export data as CSV for further analysis
     norm_agg_nutrient_mean_log2.to_csv(os.path.join(DATA_PATH, "log2_nutrient_mean_timsTOF.csv"))

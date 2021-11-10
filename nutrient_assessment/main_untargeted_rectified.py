@@ -49,7 +49,8 @@ def mutate_and_relabel_nutrient_data(df, src_colname, dest_colname="Sample Group
     return ms.map_dict_and_replace_values(df, colname=dest_colname, dict_map=group_id_to_nutrient)
 
 
-def test(df, chunk_size):
+def normalize_metabolite_levels_within_biological_replicate(df, chunk_size):
+    """Normalizes metabolite levels to the control (GLC | AMN) within each biological replicate."""
     df = ms.convert_to_numerics(df).set_index("Sample Group")
     df = filter_data_with_more_than_3_reads_among_4_samples(df, "Sample Group").drop(
         index=["Blank", "CTRL"]
@@ -82,7 +83,7 @@ def filter_data_with_more_than_3_reads_among_4_samples(df, agg_colname):
     of the nutrient conditions. I.e., there must be greater than 3/4 valid samples in
     all nutrient conditions when assessing a particular metabolite."""
     # Generate aggregated data to count NaN
-    df_count_valid_data = ms.group_and_agg(df, colname=agg_colname, agg_type=["count", "size"])
+    df_count_valid_data = ms.group_and_agg(df, colname=agg_colname, agg_type="count")
     try:
         df_count_valid_data = df_count_valid_data.drop(index=["Blank", "CTRL"])
     except:
@@ -95,7 +96,7 @@ def filter_data_with_more_than_3_reads_among_4_samples(df, agg_colname):
             list(ms.get_cols_with_less_than_count_in_row(df_count_valid_data.T, colname, 3))
         )
     # Isolate only unique compounds found to have poor resolution
-    cols_to_drop_name = list({group[0] for group in cols_to_drop})
+    cols_to_drop_name = list(set(cols_to_drop))
     return df.drop(cols_to_drop_name, axis=1)
 
 
@@ -151,7 +152,9 @@ if __name__ == "__main__":
         untargeted_yeast_ms_df, src_colname="Compound Name"
     )
 
-    untargeted_yeast_ms_df = test(untargeted_yeast_ms_df, 6)
+    untargeted_yeast_ms_df = normalize_metabolite_levels_within_biological_replicate(
+        untargeted_yeast_ms_df, 6
+    )
 
     # Aggregate df and find normalized values in respect to the control
     agg_nutrient_mean, agg_nutrient_std, agg_nutrient_cv = aggregate_mean_std_cv_from_nutrient_data(

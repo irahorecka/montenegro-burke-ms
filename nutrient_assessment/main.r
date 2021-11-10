@@ -27,7 +27,7 @@ data <- mutate_all(data, function(x) as.numeric(as.character(x)))
 
 # Plot heatmap using ward.D2 clustering method employing Manhattan clustering by row
 pheatmap(as.matrix(t(data)),
-    cutree_rows=7,
+    cutree_rows=6,
     cluster_rows=T,
     cluster_cols=F,
     clustering_method="ward.D2",
