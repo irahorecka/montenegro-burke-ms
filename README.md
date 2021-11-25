@@ -13,6 +13,8 @@ Directory that handles extraction and analysis of metabolite peaks from an S. ce
 The goal is to create hierarchically clustered dendrograms representing dysregulated metabolites from the control S. cerevisiae nutrient sample (i.e., media with glucose and ammonia). Those metabolites that show confident discrepancies of metabolite levels in different growth media will be isolated and represented in the hierarchical clusters.
 
 View /nutrient_assessment/data for pre- and post-processed data (all CSV format).
+* Usually you'll run a command from the `/nutrient_assessment` directory that LOOKS as follows (with the exception of modifying filenames, etc.):
+* `python main_timsTOF_rectified.py && Rscript main.r --file="data/log2_nutrient_mean_timsTOF.csv" && open Rplots.pdf`
 
 View /nutrient_assessment/figures for output figures (currently comprised of hierarchically clustered dendrograms). View in folders /figures/pdf and figures/png, for PDF and PNG files, respectively.
 
